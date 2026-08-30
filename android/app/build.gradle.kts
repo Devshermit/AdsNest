@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ads_nest.app"
+    namespace = "com.example.ads_nest"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -14,7 +14,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.ads_nest.app"
+        applicationId = "com.example.ads_nest"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

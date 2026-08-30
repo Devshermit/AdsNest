@@ -84,6 +84,17 @@ class MainLayout extends StatelessWidget {
               ),
             ),
             NavigationRailDestination(
+              icon: Icon(Icons.campaign_outlined, color: AppColors.textGrey),
+              selectedIcon: Icon(
+                Icons.campaign_outlined,
+                color: AppColors.primaryRed,
+              ),
+              label: Text(
+                'Campaign',
+                style: TextStyle(color: AppColors.textWhite),
+              ),
+            ),
+            NavigationRailDestination(
               icon: Icon(
                 Icons.chat_bubble_outline_rounded,
                 color: AppColors.textGrey,
@@ -139,8 +150,9 @@ class MainLayout extends StatelessWidget {
           children: [
             _buildBottomNavItem(0, Icons.grid_view_rounded, 'Dashboard'),
             _buildBottomNavItem(1, Icons.chat_bubble_outline_rounded, 'Chat'),
-            _buildBottomNavItem(2, Icons.link_rounded, 'Affiliate'),
-            _buildBottomNavItem(3, Icons.person_outline_rounded, 'Profile'),
+            _buildBottomNavItem(2, Icons.chat_bubble_outline_rounded, 'Chat'),
+            _buildBottomNavItem(3, Icons.link_rounded, 'Affiliate'),
+            _buildBottomNavItem(4, Icons.person_outline_rounded, 'Profile'),
           ],
         ),
       ),

@@ -23,7 +23,7 @@ class DateRangeSelector extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedFilter = ref.watch(selectedDateFilterProvider);
+    final selectedFilter = ref.watch(dashboardFilterProvider);
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -36,7 +36,7 @@ class DateRangeSelector extends ConsumerWidget {
               label: Text(_getLabel(filter)),
               selected: isSelected,
               onSelected: (_) {
-                ref.read(selectedDateFilterProvider.notifier).state = filter;
+                ref.read(dashboardFilterProvider.notifier).state = filter;
               },
               selectedColor: AppColors.primaryRed,
               backgroundColor: AppColors.surfaceDark,
