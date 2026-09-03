@@ -54,6 +54,7 @@
 //   );
 // });
 
+import 'package:ads_nest/features/campaigns/presentation/screens/campaigns_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -80,8 +81,7 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: '/campaign',
-              builder: (context, state) =>
-                  const Scaffold(body: Center(child: Text('Campaign'))),
+              builder: (context, state) => const CampaignsScreen(),
             ),
           ],
         ),
