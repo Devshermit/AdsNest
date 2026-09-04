@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../controllers/campaign_provider.dart';
 
@@ -15,8 +16,11 @@ class _CreateCampaignDialogState extends ConsumerState<CreateCampaignDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _budgetController = TextEditingController();
-  String _selectedPlatform = 'TIKTOK'; //อนาคตแก้บรรทัดนี้
+  String _selectedPlatform = 'TIKTOK';
   bool _isSubmitting = false;
+
+  DateTime? _startDate; // 👈 เก็บวันเริ่ม
+  DateTime? _endDate; // 👈 เก็บวันจบ
 
   @override
   void dispose() {
@@ -25,32 +29,56 @@ class _CreateCampaignDialogState extends ConsumerState<CreateCampaignDialog> {
     super.dispose();
   }
 
+  // ฟังก์ชันเปิดปฏิทินเลือกช่วงเวลา
+  Future<void> _pickDateRange() async {
+    final pickedRange = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      initialDateRange: (_startDate != null && _endDate != null)
+          ? DateTimeRange(start: _startDate!, end: _endDate!)
+          : null,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Colors.blueAccent,
+              surface: Color(0xFF1E293B),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedRange != null) {
+      setState(() {
+        _startDate = pickedRange.start;
+        _endDate = pickedRange.end;
+      });
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isSubmitting = true);
 
     try {
-      final name = _nameController.text.trim();
-      final budget = double.parse(_budgetController.text.trim());
-
       await ref
           .read(campaignActionProvider.notifier)
           .createCampaign(
-            name: name,
+            name: _nameController.text.trim(),
             platform: _selectedPlatform,
-            dailyBudget: budget,
+            dailyBudget: double.parse(_budgetController.text.trim()),
+            startDate: _startDate,
+            endDate: _endDate,
           );
-
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('เกิดข้อผิดพลาด: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -59,11 +87,16 @@ class _CreateCampaignDialogState extends ConsumerState<CreateCampaignDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final dateFormat = DateFormat('dd/MM/yyyy');
+    final dateText = (_startDate != null && _endDate != null)
+        ? '${dateFormat.format(_startDate!)} - ${dateFormat.format(_endDate!)}'
+        : 'กำหนดระยะเวลา (ไม่บังคับ)';
+
     return AlertDialog(
       backgroundColor: const Color(0xFF1E293B),
       title: const Text(
         'สร้างแคมเปญใหม่',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        style: TextStyle(color: Colors.white),
       ),
       content: SingleChildScrollView(
         child: Form(
@@ -81,11 +114,9 @@ class _CreateCampaignDialogState extends ConsumerState<CreateCampaignDialog> {
                     borderSide: BorderSide(
                       color: Colors.white.withValues(alpha: 0.1),
                     ),
-                    borderRadius: BorderRadius.circular(8),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderSide: const BorderSide(color: Colors.blueAccent),
-                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 validator: (val) => val == null || val.trim().isEmpty
@@ -104,7 +135,6 @@ class _CreateCampaignDialogState extends ConsumerState<CreateCampaignDialog> {
                     borderSide: BorderSide(
                       color: Colors.white.withValues(alpha: 0.1),
                     ),
-                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 items: const [
@@ -115,9 +145,7 @@ class _CreateCampaignDialogState extends ConsumerState<CreateCampaignDialog> {
                   ),
                   DropdownMenuItem(value: 'SHOPEE', child: Text('Shopee Ads')),
                 ],
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedPlatform = val);
-                },
+                onChanged: (val) => setState(() => _selectedPlatform = val!),
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -131,22 +159,49 @@ class _CreateCampaignDialogState extends ConsumerState<CreateCampaignDialog> {
                     borderSide: BorderSide(
                       color: Colors.white.withValues(alpha: 0.1),
                     ),
-                    borderRadius: BorderRadius.circular(8),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderSide: const BorderSide(color: Colors.blueAccent),
-                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'กรุณาระบุงบประมาณ';
-                  }
-                  if (double.tryParse(val) == null) {
-                    return 'กรุณากรอกตัวเลขที่ถูกต้อง';
-                  }
-                  return null;
-                },
+                validator: (val) => val == null || val.trim().isEmpty
+                    ? 'กรุณาระบุงบประมาณ'
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              // 👈 UI สำหรับเลือกวันที่
+              InkWell(
+                onTap: _pickDateRange,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_month_rounded,
+                        color: Colors.white54,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        dateText,
+                        style: TextStyle(
+                          color: _startDate != null
+                              ? Colors.white
+                              : Colors.white54,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -155,24 +210,15 @@ class _CreateCampaignDialogState extends ConsumerState<CreateCampaignDialog> {
       actions: [
         TextButton(
           onPressed: _isSubmitting ? null : () => Navigator.pop(context),
-          child: const Text('ยกเลิก', style: TextStyle(color: Colors.white54)),
+          child: const Text('ยกเลิก'),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
           onPressed: _isSubmitting ? null : _submit,
-          child: _isSubmitting
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Text(
-                  'สร้างแคมเปญ',
-                  style: TextStyle(color: Colors.white),
-                ),
+          child: const Text(
+            'สร้างแคมเปญ',
+            style: TextStyle(color: Colors.white),
+          ),
         ),
       ],
     );

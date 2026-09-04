@@ -50,6 +50,8 @@ class CampaignActionNotifier extends Notifier<void> {
     required String name,
     required String platform,
     required double dailyBudget,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
     final dataSource = ref.read(campaignRemoteDataSourceProvider);
 
@@ -57,7 +59,7 @@ class CampaignActionNotifier extends Notifier<void> {
     final tenantId = user?.userMetadata?['tenant_id'] ?? user?.id;
 
     if (tenantId == null) {
-      throw Exception('ไม่พบข้อมูล Tenant ID กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
+      throw Exception('ไม่พบข้อมูล Tenant ID');
     }
 
     final newCampaign = Campaign(
@@ -67,6 +69,8 @@ class CampaignActionNotifier extends Notifier<void> {
       platform: platform,
       status: 'ACTIVE',
       dailyBudgetLimit: dailyBudget,
+      startDate: startDate,
+      endDate: endDate,
     );
 
     await dataSource.createCampaign(newCampaign);

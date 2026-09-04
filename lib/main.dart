@@ -23,7 +23,7 @@ class AdsNestApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // final router = ref.watch(routerProvider);
+    final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
       title: 'AdsNest',
@@ -32,8 +32,8 @@ class AdsNestApp extends ConsumerWidget {
       theme: ThemeData(
         textTheme: GoogleFonts.kanitTextTheme(Theme.of(context).textTheme),
       ),
-      // routerConfig: router,
-      routerConfig: appRouter,
+      routerConfig: router,
+      // routerConfig: appRouter,
     );
   }
 }

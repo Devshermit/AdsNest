@@ -14,7 +14,7 @@ class CampaignsScreen extends ConsumerWidget {
     final asyncCampaigns = ref.watch(campaignsListProvider);
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFF0B1121),
       appBar: AppBar(
         title: const Text(
           'จัดการแคมเปญ',
