@@ -53,6 +53,7 @@
 //   );
 // });
 
+import 'package:ads_nest/features/affiliate/presentation/screens/affiliate_screen.dart';
 import 'package:ads_nest/features/auth/presentation/controllers/auth_provider.dart';
 import 'package:ads_nest/features/auth/presentation/screens/auth_screen.dart';
 import 'package:ads_nest/features/auth/presentation/screens/register_screen.dart';
@@ -69,7 +70,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider).value;
 
   return GoRouter(
-    initialLocation: '/profile',
+    initialLocation: '/affiliate',
     redirect: (context, state) {
       // ตรวจสอบว่ามี User ใน Session หรือไม่
       final isAuthenticated = authState?.session != null;
@@ -133,8 +134,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/affiliate',
-                builder: (context, state) =>
-                    const Scaffold(body: Center(child: Text('Affiliate'))),
+                builder: (context, state) => const AffiliateScreen(),
               ),
             ],
           ),
