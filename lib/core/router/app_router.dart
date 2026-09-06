@@ -57,6 +57,7 @@ import 'package:ads_nest/features/auth/presentation/controllers/auth_provider.da
 import 'package:ads_nest/features/auth/presentation/screens/auth_screen.dart';
 import 'package:ads_nest/features/auth/presentation/screens/register_screen.dart';
 import 'package:ads_nest/features/campaigns/presentation/screens/campaigns_screen.dart';
+import 'package:ads_nest/features/profile/presentation/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -68,7 +69,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider).value;
 
   return GoRouter(
-    initialLocation: '/dashboard',
+    initialLocation: '/profile',
     redirect: (context, state) {
       // ตรวจสอบว่ามี User ใน Session หรือไม่
       final isAuthenticated = authState?.session != null;
@@ -141,8 +142,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/profile',
-                builder: (context, state) =>
-                    const Scaffold(body: Center(child: Text('Profile'))),
+                builder: (context, state) => const ProfileScreen(),
               ),
             ],
           ),
