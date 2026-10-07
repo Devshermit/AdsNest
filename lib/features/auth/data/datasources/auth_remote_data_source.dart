@@ -1,19 +1,26 @@
+import 'dart:developer';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../domain/entities/app_user.dart';
 
 abstract class AuthRemoteDataSource {
   Stream<AuthState> get authStateChanges;
-  Future<AuthResponse> signInWithEmail(String email, String password);
-  Future<AuthResponse> signUpWithEmail(
-    String email,
-    String password,
-    String fullName,
-  );
+  Future<void> signUp({
+    required String email,
+    required String password,
+    required String fullName,
+    required String role,
+    // String? companyName,
+    // String? industry,
+    // String? tenantId,
+  });
+  Future<void> signIn({required String email, required String password});
   Future<bool> signInWithOAuth(OAuthProvider provider);
   Future<void> signOut();
+  Future<AppUser?> getCurrentUserProfile();
+  Future<void> updateFcmToken(String token);
   Future<void> resetPassword(String email);
-  Future<AppUser?> getUserProfile(String userId, String email);
   Future<void> resendVerificationEmail(String email);
 }
 
@@ -24,38 +31,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Stream<AuthState> get authStateChanges => supabase.auth.onAuthStateChange;
-
-  @override
-  Future<AuthResponse> signInWithEmail(String email, String password) async {
-    return await supabase.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
-  }
-
-  @override
-  Future<AuthResponse> signUpWithEmail(
-    String email,
-    String password,
-    String fullName,
-  ) async {
-    final response = await supabase.auth.signUp(
-      email: email,
-      password: password,
-      data: {'full_name': fullName},
-      emailRedirectTo: 'io.supabase.flutter://email-callback/',
-    );
-
-    if (response.user != null) {
-      await supabase.from('profiles').insert({
-        'id': response.user!.id,
-        'full_name': fullName,
-
-        // role และ created_at จะถูกตั้งค่า Default ตาม SQL ที่คุณเขียนไว้
-      });
-    }
-    return response;
-  }
 
   @override
   Future<bool> signInWithOAuth(OAuthProvider provider) async {
@@ -79,23 +54,72 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<AppUser?> getUserProfile(String userId, String email) async {
-    final data = await supabase
-        .from('profiles')
-        .select()
-        .eq('id', userId)
-        .maybeSingle();
-
-    if (data == null) return null;
-    return AppUser.fromProfileMap(data, email);
-  }
-
-  @override
   Future<void> resendVerificationEmail(String email) async {
     await supabase.auth.resend(
       type: OtpType.signup,
       email: email,
       emailRedirectTo: 'io.supabase.flutter://email-callback/',
     );
+  }
+
+  @override
+  Future<AppUser?> getCurrentUserProfile() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return null;
+
+    final response = await supabase
+        .from('profiles')
+        .select()
+        .eq('id', user.id)
+        .maybeSingle();
+    if (response == null) return null;
+
+    return AppUser.fromJson(response);
+  }
+
+  @override
+  Future<void> signIn({required String email, required String password}) async {
+    await supabase.auth.signInWithPassword(email: email, password: password);
+  }
+
+  @override
+  Future<void> signUp({
+    required String email,
+    required String password,
+    required String fullName,
+    required String role,
+    // String? companyName,
+    // String? industry,
+    // String? tenantId,
+  }) async {
+    final metaData = <String, dynamic>{
+      'full_name': fullName,
+      'role': role,
+      // if (companyName != null && companyName.isNotEmpty)
+      //   'company_name': companyName,
+      // if (industry != null && industry.isNotEmpty) 'industry': industry,
+      // if (tenantId != null && tenantId.isNotEmpty) 'tenant_id': tenantId,
+    };
+    await supabase.auth.signUp(
+      email: email,
+      password: password,
+      data: metaData,
+    );
+  }
+
+  @override
+  Future<void> updateFcmToken(String token) async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      await supabase
+          .from('profiles')
+          .update({'fcm_token': token})
+          .eq('id', userId);
+    } on PostgrestException catch (e) {
+      log('Failed to update FCM token: ${e.message}');
+      rethrow;
+    }
   }
 }

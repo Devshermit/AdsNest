@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../controllers/auth_provider.dart';
 
@@ -12,198 +11,306 @@ class RegisterScreen extends ConsumerStatefulWidget {
 }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
+  final _pageController = PageController();
+  int _currentStep = 0;
+
+  final _step1FormKey = GlobalKey<FormState>();
+  final _step2FormKey = GlobalKey<FormState>();
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _fullNameController = TextEditingController();
+
+  // Selected Role (Default: CLIENT_OWNER หรือ AGENCY_STAFF หากมี invite link)
+  String _selectedRole = 'CLIENT_OWNER';
 
   @override
   void dispose() {
-    _fullNameController.dispose();
+    _pageController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _fullNameController.dispose();
     super.dispose();
   }
 
-  Future<void> _submitRegister() async {
-    if (!_formKey.currentState!.validate()) return;
-    FocusScope.of(context).unfocus();
+  // ไปยัง Step 2
+  void _goToNextStep() {
+    if (_step1FormKey.currentState!.validate()) {
+      setState(() => _currentStep = 1);
+      _pageController.animateToPage(
+        1,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
 
-    await ref
+  // ย้อนกลับ Step 1
+  void _goToPreviousStep() {
+    setState(() => _currentStep = 0);
+    _pageController.animateToPage(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _onRegisterSubmit() async {
+    if (!_step2FormKey.currentState!.validate()) return;
+
+    final success = await ref
         .read(authControllerProvider.notifier)
         .signUp(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
-          _fullNameController.text.trim(),
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+          fullName: _fullNameController.text.trim(),
+          role: _selectedRole,
         );
 
-    if (!mounted) return;
-
-    final authState = ref.read(authControllerProvider);
-    if (authState.hasError) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('สมัครสมาชิกไม่สำเร็จ: ${authState.error}'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('สมัครสมาชิกสำเร็จแล้ว!')));
+    if (!success && mounted) {
+      final errorState = ref.read(authControllerProvider);
+      if (errorState.hasError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorState.error.toString()),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isLoading = ref.watch(authControllerProvider).isLoading;
+    final authState = ref.watch(authControllerProvider);
+    final isLoading = authState.isLoading;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32.0),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 400),
-            padding: const EdgeInsets.all(32.0),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      appBar: AppBar(
+        title: Text('สมัครสมาชิก (ขั้นตอนที่ ${_currentStep + 1}/2)'),
+        leading: _currentStep == 1
+            ? IconButton(
+                onPressed: isLoading ? null : _goToPreviousStep,
+                icon: const Icon(Icons.arrow_back),
+              )
+            : null,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            LinearProgressIndicator(value: (_currentStep + 1) / 2),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  Icon(
-                    Icons.person_add_rounded,
-                    size: 64,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'ลงทะเบียนใช้งาน',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // ช่องกรอกชื่อ-นามสกุล
-                  TextFormField(
-                    controller: _fullNameController,
-                    enabled: !isLoading,
-                    decoration: const InputDecoration(
-                      labelText: 'ชื่อ-นามสกุล',
-                      prefixIcon: Icon(Icons.badge_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (val) => val == null || val.trim().isEmpty
-                        ? 'กรุณากรอกชื่อ-นามสกุล'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ช่องกรอกอีเมล
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    enabled: !isLoading,
-                    decoration: const InputDecoration(
-                      labelText: 'อีเมล',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (val) => val == null || !val.contains('@')
-                        ? 'กรุณากรอกอีเมลให้ถูกต้อง'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ช่องกรอกรหัสผ่าน
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    enabled: !isLoading,
-                    decoration: const InputDecoration(
-                      labelText: 'รหัสผ่าน',
-                      prefixIcon: Icon(Icons.lock_outline),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (val) => val == null || val.length < 6
-                        ? 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ยืนยันรหัสผ่าน
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    obscureText: true,
-                    enabled: !isLoading,
-                    decoration: const InputDecoration(
-                      labelText: 'ยืนยันรหัสผ่าน',
-                      prefixIcon: Icon(Icons.lock_clock_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (val) {
-                      if (val != _passwordController.text) {
-                        return 'รหัสผ่านไม่ตรงกัน';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-
-                  // ปุ่มสมัครสมาชิก
-                  FilledButton(
-                    onPressed: isLoading ? null : _submitRegister,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('สมัครสมาชิก'),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ปุ่มกลับไปหน้า Login
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'มีบัญชีอยู่แล้ว?',
-                        style: TextStyle(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: isLoading
-                            ? null
-                            : () => context.go('/login'),
-                        child: const Text('เข้าสู่ระบบ'),
-                      ),
-                    ],
-                  ),
+                  _buildStep1AccountInfo(),
+                  _buildStep2ProfileAndRoleInfo(isLoading),
                 ],
               ),
             ),
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // STEP 1: Email & Password
+  // ==========================================
+  Widget _buildStep1AccountInfo() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Form(
+        key: _step1FormKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'สร้างบัญชีผู้ใช้ใหม่',
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'กรอกอีเมลและรหัสผ่านเพื่อใช้เข้าสู่ระบบ',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 24),
+
+            // Email
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'อีเมล',
+                prefixIcon: Icon(Icons.email_outlined),
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) => v == null || !v.contains('@')
+                  ? 'กรุณากรอกอีเมลให้ถูกต้อง'
+                  : null,
+            ),
+            const SizedBox(height: 16),
+
+            // Password
+            TextFormField(
+              controller: _passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'รหัสผ่าน',
+                prefixIcon: Icon(Icons.lock_outline),
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) => v == null || v.length < 6
+                  ? 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'
+                  : null,
+            ),
+            const SizedBox(height: 16),
+
+            // Confirm Password
+            TextFormField(
+              controller: _confirmPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'ยืนยันรหัสผ่าน',
+                prefixIcon: Icon(Icons.lock_reset_outlined),
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) {
+                if (v != _passwordController.text) {
+                  return 'รหัสผ่านไม่ตรงกัน';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 32),
+
+            // Next Step Button
+            SizedBox(
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _goToNextStep,
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('ถัดไป', style: TextStyle(fontSize: 16)),
+                    SizedBox(width: 8),
+                    Icon(Icons.arrow_forward, size: 20),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // STEP 2: Full Name & Role Selection
+  // ==========================================
+  Widget _buildStep2ProfileAndRoleInfo(bool isLoading) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Form(
+        key: _step2FormKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'ข้อมูลส่วนตัวและบทบาท',
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'ระบุชื่อและเลือกบทบาทของคุณในระบบ',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 24),
+
+            // Full Name
+            TextFormField(
+              controller: _fullNameController,
+              decoration: const InputDecoration(
+                labelText: 'ชื่อ-นามสกุล',
+                prefixIcon: Icon(Icons.person_outline),
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) =>
+                  v == null || v.isEmpty ? 'กรุณากรอกชื่อ-นามสกุล' : null,
+            ),
+            const SizedBox(height: 24),
+
+            // Role Selector
+            const Text(
+              'เลือกบทบาทของคุณ:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<String>(
+              segments: [
+                const ButtonSegment(
+                  value: 'CLIENT_OWNER',
+                  label: Text('เจ้าขององค์กร'),
+                  icon: Icon(Icons.business),
+                ),
+                const ButtonSegment(
+                  value: 'AGENCY_STAFF',
+                  label: Text('ทีมงาน'),
+                  icon: Icon(Icons.badge),
+                ),
+                const ButtonSegment(
+                  value: 'AFFILIATE',
+                  label: Text('นักรีวิว/ตัวแทน'),
+                  icon: Icon(Icons.campaign),
+                ),
+              ],
+              selected: {_selectedRole},
+              onSelectionChanged: (set) {
+                setState(() => _selectedRole = set.first);
+              },
+            ),
+            const SizedBox(height: 32),
+
+            // Buttons: ย้อนกลับ & ยืนยัน
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: isLoading ? null : _goToPreviousStep,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 48),
+                    ),
+                    child: const Text('ย้อนกลับ'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: isLoading ? null : _onRegisterSubmit,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(0, 48),
+                    ),
+                    child: isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text(
+                            'ยืนยันสมัครสมาชิก',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
