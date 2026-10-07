@@ -13,6 +13,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/layout/main_layout.dart';
+import '../../features/affiliate/presentation/screens/affiliate_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 
 // Helper Class สำหรับส่งสัญญาณให้ GoRouter ประเมิน redirect ใหม่
