@@ -1,3 +1,4 @@
+import 'package:ads_nest/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
@@ -5,6 +6,28 @@ import 'package:flutter/foundation.dart';
 class NotificationService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final SupabaseClient _supabase = Supabase.instance.client;
+
+  static Future<void> syncFcmTokenPostLogin(
+    AuthRemoteDataSource dataSource,
+  ) async {
+    try {
+      final messaging = FirebaseMessaging.instance;
+      final settings = await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        final token = await messaging.getToken();
+        if (token != null && token.isNotEmpty) {
+          await dataSource.updateFcmToken(token);
+          debugPrint('FCM Token synced successfully: $token');
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to sync FCM token: $e');
+    }
+  }
 
   Future<void> initAndSyncToken() async {
     final settings = await _fcm.requestPermission(
